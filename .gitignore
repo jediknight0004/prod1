@@ -1,0 +1,14 @@
+# Ignore everything in Downloads root except the swarm project
+/*
+!denials-swarm-demo/
+!.gitignore
+
+# Inside the project — never commit secrets
+denials-swarm-demo/.env
+
+# Python / editor noise
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+Thumbs.db
