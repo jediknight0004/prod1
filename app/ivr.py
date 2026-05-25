@@ -110,31 +110,70 @@ class IVRDetector(FrameProcessor):
 
 PAYER_IVR_TREES: dict[str, list[tuple[str, str]]] = {
     "default": [
-        ("language", "DTMF:1"),            # English
-        ("press 1 for claims", "DTMF:1"),
-        ("enter.*npi", "SAY:{npi}"),
-        ("enter.*member", "SAY:{member_id}"),
-        ("claim status", "DTMF:1"),
+        ("language",                              "DTMF:1"),
+        ("press 1 for claims",                    "DTMF:1"),
+        ("enter.*npi|national provider",          "SAY:{provider_npi}"),
+        ("tax id|taxpayer",                       "SAY:{group_tax_id}"),
+        ("enter.*member|subscriber id",           "SAY:{member_id}"),
+        ("date of birth|patient.*birth",          "SAY:{member_dob}"),
+        ("claim status",                          "DTMF:1"),
     ],
     "aetna": [
-        ("language", "DTMF:1"),
-        ("provider services", "DTMF:2"),
-        ("claim status", "DTMF:1"),
-        ("enter.*npi", "SAY:{npi}"),
-        ("enter.*member", "SAY:{member_id}"),
+        ("language",                              "DTMF:1"),
+        ("provider services",                     "DTMF:2"),
+        ("claim status",                          "DTMF:1"),
+        ("enter.*npi",                            "SAY:{provider_npi}"),
+        ("tax id",                                "SAY:{group_tax_id}"),
+        ("member id|subscriber",                  "SAY:{member_id}"),
+        ("date of birth",                         "SAY:{member_dob}"),
+        ("group number|group id",                 "SAY:{group_name}"),
     ],
     "united health": [
-        ("language", "DTMF:1"),
-        ("claims", "DTMF:1"),
-        ("enter.*npi", "SAY:{npi}"),
-        ("enter.*id", "SAY:{member_id}"),
+        ("language",                              "DTMF:1"),
+        ("claims",                                "DTMF:1"),
+        ("enter.*npi",                            "SAY:{provider_npi}"),
+        ("tax.*id|tin",                           "SAY:{provider_tax_id}"),
+        ("member.*id|subscriber",                 "SAY:{member_id}"),
+        ("date of birth",                         "SAY:{member_dob}"),
+        ("group",                                 "SAY:{group_name}"),
     ],
     "bcbs": [
-        ("language", "DTMF:1"),
-        ("provider", "DTMF:2"),
-        ("claim", "DTMF:1"),
-        ("enter.*npi", "SAY:{npi}"),
-        ("member id", "SAY:{member_id}"),
+        ("language",                              "DTMF:1"),
+        ("provider",                              "DTMF:2"),
+        ("claim",                                 "DTMF:1"),
+        ("npi",                                   "SAY:{provider_npi}"),
+        ("tax id",                                "SAY:{group_tax_id}"),
+        ("member id",                             "SAY:{member_id}"),
+        ("date of birth",                         "SAY:{member_dob}"),
+        ("group name",                            "SAY:{group_name}"),
+    ],
+    "cigna": [
+        ("language",                              "DTMF:1"),
+        ("provider",                              "DTMF:1"),
+        ("claims",                                "DTMF:2"),
+        ("npi",                                   "SAY:{provider_npi}"),
+        ("tax id",                                "SAY:{group_tax_id}"),
+        ("member id|subscriber",                  "SAY:{member_id}"),
+        ("date of birth",                         "SAY:{member_dob}"),
+    ],
+    "humana": [
+        ("language",                              "DTMF:1"),
+        ("provider services",                     "DTMF:3"),
+        ("claim status",                          "DTMF:1"),
+        ("npi",                                   "SAY:{provider_npi}"),
+        ("tax id",                                "SAY:{group_tax_id}"),
+        ("member id",                             "SAY:{member_id}"),
+        ("date of birth",                         "SAY:{member_dob}"),
+        ("group",                                 "SAY:{group_npi}"),
+    ],
+    "medicare": [
+        ("language",                              "DTMF:1"),
+        ("provider",                              "DTMF:2"),
+        ("claim",                                 "DTMF:1"),
+        ("npi",                                   "SAY:{provider_npi}"),
+        ("ptan|provider transaction",             "SAY:{provider_npi}"),
+        ("beneficiary.*id|medicare.*id",          "SAY:{member_id}"),
+        ("date of birth",                         "SAY:{member_dob}"),
     ],
 }
 
@@ -149,12 +188,28 @@ def get_ivr_tree(payer_name: str) -> list[tuple[str, str]]:
 
 IVR_SYSTEM_ADDENDUM = """
 IVR NAVIGATION RULES:
-- You are navigating a phone tree. Listen carefully to each prompt.
-- To press a key respond ONLY with [DTMF:X] (e.g. [DTMF:1], [DTMF:123456789])
-- To speak digits (NPI, member ID) say them naturally: "1 2 3 4 5 6 7 8 9"
-- When asked for NPI say: "{npi}"
-- When asked for member ID or subscriber ID say: "{member_id}"
-- Do NOT speak any other text while in the IVR — only DTMF tags or digit strings
-- When you detect a live human (they greet you), switch to normal conversation mode
-- If you hear hold music or "please hold", output nothing and wait
+- You are navigating a payer phone tree. Listen to each prompt and respond precisely.
+- To press a key respond ONLY with [DTMF:X] — e.g. [DTMF:1] or [DTMF:12345]
+- To speak a value, say the digits/words naturally with brief pauses between groups
+- Do NOT speak any other text while in the IVR — only the requested value
+- When you detect a live human (greeting, "how can I help"), switch to conversation mode
+- If you hear hold music or "please hold" or "all representatives are busy", output nothing
+
+CREDENTIALS TO USE WHEN ASKED (speak naturally, do not read labels):
+- NPI / National Provider Identifier : {provider_npi}
+- Provider name                       : {provider_name}
+- Provider Tax ID / TIN               : {provider_tax_id}
+- Group name / practice name          : {group_name}
+- Group NPI / billing NPI             : {group_npi}
+- Group Tax ID                        : {group_tax_id}
+- Member ID / Subscriber ID           : {member_id}
+- Member name / patient name          : {member_name}
+- Member date of birth                : {member_dob}
+- Payer ID                            : {payer_id}
+
+EXAMPLE RESPONSES:
+  IVR: "Please enter or say your NPI"       → say "{provider_npi}" digit by digit
+  IVR: "Please enter your tax ID"           → say "{group_tax_id}" digit by digit
+  IVR: "What is the member's date of birth" → say "{member_dob}"
+  IVR: "Please say or enter the group name" → say "{group_name}"
 """

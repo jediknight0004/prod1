@@ -90,8 +90,16 @@ async def run_call_pipeline(websocket, stream_sid: str, ctx: CallContext,
 
     # Build system prompt: conversation script + IVR navigation rules
     ivr_addendum = IVR_SYSTEM_ADDENDUM.format(
-        npi=ctx.provider_npi,
+        provider_npi=ctx.provider_npi,
+        provider_name=ctx.provider_name,
+        provider_tax_id=ctx.provider_tax_id,
+        group_name=ctx.group_name,
+        group_npi=ctx.group_npi,
+        group_tax_id=ctx.group_tax_id,
         member_id=ctx.member_id,
+        member_name=ctx.member_name,
+        member_dob=ctx.member_dob,
+        payer_id=ctx.payer_id,
     )
     system_prompt = build_system_prompt(ctx) + ivr_addendum
 
