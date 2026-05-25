@@ -10,6 +10,6 @@ minio==7.2.10
 cryptography==43.0.3
 pydantic-settings==2.6.1
 python-multipart==0.0.12
-telnyx==2.1.0
+telnyx==2.1.6
 litellm==1.52.0
 loguru==0.7.2
