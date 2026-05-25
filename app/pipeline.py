@@ -31,7 +31,7 @@ def _llm_client():
     if settings.llm_provider == "groq":
         return OpenAILLMService(
             api_key=settings.groq_api_key,
-            model="llama-3.3-70b-versatile",
+            model=settings.groq_model,
             base_url="https://api.groq.com/openai/v1",
         )
     # Production: AWS Bedrock (HIPAA BAA via AWS)
