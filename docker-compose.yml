@@ -1,4 +1,14 @@
 services:
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ns-call-ngrok
+    command: http call-agent:8090 --log=stdout
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    ports:
+      - "4040:4040"    # ngrok dashboard: http://localhost:4040
+    restart: unless-stopped
+
   call-agent:
     build: .
     container_name: ns-call-agent
@@ -6,12 +16,12 @@ services:
       - "8090:8090"
     env_file: .env
     environment:
-      # Override Neo4j to use host network so it can reach existing RCM stack
-      NEO4J_URI: "bolt://host.docker.internal:7687"
+      NEO4J_URI:      "bolt://host.docker.internal:7687"
       MINIO_ENDPOINT: "host.docker.internal:9000"
-      REDIS_URL: "redis://redis:6379"
+      REDIS_URL:      "redis://redis:6379"
     depends_on:
       - redis
+      - ngrok
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -20,7 +30,7 @@ services:
     image: redis:7-alpine
     container_name: ns-call-redis
     ports:
-      - "6380:6379"    # 6380 on host to avoid clash if Redis already running
+      - "6380:6379"
     volumes:
       - call_redis_data:/data
     restart: unless-stopped
