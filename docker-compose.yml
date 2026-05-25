@@ -1,0 +1,29 @@
+services:
+  call-agent:
+    build: .
+    container_name: ns-call-agent
+    ports:
+      - "8090:8090"
+    env_file: .env
+    environment:
+      # Override Neo4j to use host network so it can reach existing RCM stack
+      NEO4J_URI: "bolt://host.docker.internal:7687"
+      MINIO_ENDPOINT: "host.docker.internal:9000"
+      REDIS_URL: "redis://redis:6379"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  redis:
+    image: redis:7-alpine
+    container_name: ns-call-redis
+    ports:
+      - "6380:6379"    # 6380 on host to avoid clash if Redis already running
+    volumes:
+      - call_redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  call_redis_data:
