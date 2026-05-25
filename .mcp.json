@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "neo4j-rcm": {
+      "type": "http",
+      "url": "http://localhost:8088/mcp"
+    }
+  }
+}

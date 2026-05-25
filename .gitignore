@@ -2,6 +2,7 @@
 /*
 !denials-swarm-demo/
 !.gitignore
+!.mcp.json
 
 # Inside the project — never commit secrets
 denials-swarm-demo/.env
