@@ -1,4 +1,4 @@
-pipecat-ai[deepgram,silero,websockets]==0.0.47
+pipecat-ai[deepgram,silero,cartesia,websockets]==0.0.47
 fastapi==0.115.5
 uvicorn[standard]==0.32.1
 websockets==13.1

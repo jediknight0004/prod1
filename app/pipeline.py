@@ -11,12 +11,14 @@ from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineTask, PipelineParams
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.services.cartesia import CartesiaTTSService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.transports.network.websocket_server import (
     WebsocketServerTransport,
     WebsocketServerParams,
 )
 from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.frames.frames import LLMMessagesFrame
 
 from .config import settings
@@ -65,7 +67,10 @@ async def run_call_pipeline(websocket, stream_sid: str, ctx: CallContext,
             audio_out_enabled=True,
             add_wav_header=False,
             vad_enabled=True,
-            vad_analyzer=SileroVADAnalyzer(),
+            vad_analyzer=SileroVADAnalyzer(params=VADParams(
+                stop_secs=0.3,          # declare end of speech after 300ms silence (default 800ms)
+                min_volume=0.6,
+            )),
             vad_audio_passthrough=True,
             serializer=serializer,
         )
@@ -76,14 +81,25 @@ async def run_call_pipeline(websocket, stream_sid: str, ctx: CallContext,
         model="nova-3",
         language="en-US",
         punctuate=True,
-        interim_results=False,
+        interim_results=True,       # start LLM processing before utterance fully ends
+        utterance_end_ms=1000,      # declare end after 1000ms silence (default 1500)
+        vad_events=True,
     )
 
-    tts = DeepgramTTSService(
-        api_key=settings.deepgram_api_key,
-        voice="aura-asteria-en",
-        sample_rate=8000,
-        encoding="mulaw",
+    tts = (
+        CartesiaTTSService(
+            api_key=settings.cartesia_api_key,
+            voice_id=settings.cartesia_voice_id,
+            sample_rate=8000,
+            encoding="pcm_mulaw",
+        )
+        if settings.cartesia_api_key
+        else DeepgramTTSService(           # fallback if no Cartesia key
+            api_key=settings.deepgram_api_key,
+            voice="aura-asteria-en",
+            sample_rate=8000,
+            encoding="mulaw",
+        )
     )
 
     llm = _llm_client()

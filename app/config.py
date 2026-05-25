@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     telnyx_from_number: str = ""
 
     deepgram_api_key: str = ""
+    cartesia_api_key: str = ""
+    cartesia_voice_id: str = "a0e99841-438c-4a64-b679-ae501e7d6091"  # Barbershop man — clear, professional
 
     llm_provider: str = "groq"
     groq_api_key: str = ""
