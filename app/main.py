@@ -8,6 +8,8 @@ Routes:
   GET  /health                 Liveness check
 """
 import asyncio
+import base64
+import re
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -55,7 +57,12 @@ async def telnyx_webhook(request: Request):
 
     if event_type == "call.answered":
         call_control_id = payload["call_control_id"]
-        call_id = payload.get("call_leg_id", str(uuid.uuid4()))
+        # decode base64 client_state back to our call_id
+        raw_state = payload.get("client_state", "")
+        try:
+            call_id = base64.b64decode(raw_state).decode() if raw_state else payload.get("call_leg_id", str(uuid.uuid4()))
+        except Exception:
+            call_id = payload.get("call_leg_id", str(uuid.uuid4()))
         meta = _active_calls.get(call_id, {})
         _active_calls.setdefault(call_id, {})["call_control_id"] = call_control_id
 
@@ -128,6 +135,12 @@ async def trigger_outbound(req: OutboundRequest):
     if not to:
         raise HTTPException(status_code=400, detail="No payer phone number available")
 
+    # Ensure E164 format (+1XXXXXXXXXX)
+    digits_only = re.sub(r'\D', '', to)
+    if not digits_only.startswith('1'):
+        digits_only = '1' + digits_only
+    to = '+' + digits_only
+
     call_id = str(uuid.uuid4())
     _active_calls[call_id] = {
         "denial_id": req.denial_id,
@@ -149,7 +162,7 @@ async def trigger_outbound(req: OutboundRequest):
             connection_id=settings.telnyx_app_id,
             to=to,
             from_=settings.telnyx_from_number,
-            client_state=call_id,
+            client_state=base64.b64encode(call_id.encode()).decode(),
         )
         logger.info(f"Outbound call placed: {call_id} -> {to} ({ctx.payer_name})")
         return {"call_id": call_id, "status": "dialing", "to": to}
