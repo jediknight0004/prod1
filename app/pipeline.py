@@ -3,6 +3,7 @@ Pipecat pipeline factory.
 STT: Deepgram Nova-3 (streaming)
 LLM: LiteLLM router — Groq (dev) or AWS Bedrock (prod)
 TTS: Deepgram Aura (same vendor BAA as STT)
+IVR: DTMFProcessor intercepts [DTMF:X] tags, fires Telnyx API
 """
 import asyncio
 from pipecat.pipeline.pipeline import Pipeline
@@ -22,6 +23,7 @@ from .config import settings
 from .context import CallContext
 from .transport.telnyx_serializer import TelnyxFrameSerializer
 from .scripts.ar_followup import build_system_prompt, OPENING
+from .ivr import DTMFProcessor, IVRDetector, get_ivr_tree, IVR_SYSTEM_ADDENDUM
 
 
 def _llm_client():
@@ -50,9 +52,10 @@ def _llm_client():
 
 
 async def run_call_pipeline(websocket, stream_sid: str, ctx: CallContext,
-                            call_id: str) -> str:
+                            call_id: str, call_control_id: str = "") -> str:
     """
     Runs the full Pipecat pipeline over a Telnyx media WebSocket.
+    Includes IVR navigation (DTMF) + human detection.
     Returns outcome string for audit logging.
     """
     serializer = TelnyxFrameSerializer(stream_sid)
@@ -85,7 +88,13 @@ async def run_call_pipeline(websocket, stream_sid: str, ctx: CallContext,
 
     llm = _llm_client()
 
-    system_prompt = build_system_prompt(ctx)
+    # Build system prompt: conversation script + IVR navigation rules
+    ivr_addendum = IVR_SYSTEM_ADDENDUM.format(
+        npi=ctx.provider_npi,
+        member_id=ctx.member_id,
+    )
+    system_prompt = build_system_prompt(ctx) + ivr_addendum
+
     context = OpenAILLMContext(
         messages=[
             {"role": "system", "content": system_prompt},
@@ -94,11 +103,18 @@ async def run_call_pipeline(websocket, stream_sid: str, ctx: CallContext,
     )
     context_aggregator = llm.create_context_aggregator(context)
 
+    # IVR processors
+    ivr_state = {"in_ivr": True, "payer": ctx.payer_name}
+    ivr_detector = IVRDetector(ivr_state)
+    dtmf_proc = DTMFProcessor(call_control_id)
+
     pipeline = Pipeline([
         transport.input(),
         stt,
+        ivr_detector,            # tags incoming speech as IVR or human
         context_aggregator.user(),
         llm,
+        dtmf_proc,               # intercepts [DTMF:X], fires Telnyx API, strips from TTS
         tts,
         transport.output(),
         context_aggregator.assistant(),

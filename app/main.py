@@ -57,6 +57,7 @@ async def telnyx_webhook(request: Request):
         call_control_id = payload["call_control_id"]
         call_id = payload.get("call_leg_id", str(uuid.uuid4()))
         meta = _active_calls.get(call_id, {})
+        _active_calls.setdefault(call_id, {})["call_control_id"] = call_control_id
 
         # Start media streaming to our WebSocket endpoint
         ws_url = f"{settings.public_url.replace('https','wss').replace('http','ws')}/ws/media/{call_id}"
@@ -102,7 +103,9 @@ async def media_websocket(websocket: WebSocket, call_id: str):
         return
 
     stream_sid = f"stream_{call_id}"
-    outcome = await run_call_pipeline(websocket, stream_sid, ctx, call_id)
+    call_control_id = meta.get("call_control_id", "")
+    outcome = await run_call_pipeline(websocket, stream_sid, ctx, call_id,
+                                      call_control_id)
     _active_calls.setdefault(call_id, {})["outcome"] = outcome
 
 
