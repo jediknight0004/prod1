@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     telnyx_api_key: str = ""
     telnyx_app_id: str = ""
+    telnyx_assistant_id: str = ""   # Telnyx AI Assistant ID (for managed AI calls)
     telnyx_from_number: str = ""
 
     deepgram_api_key: str = ""

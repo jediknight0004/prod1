@@ -1,0 +1,19 @@
+{
+  "_comment": "Variable map for Telnyx AI Assistant — injected at call time from Neo4j context",
+  "variables": {
+    "organization_name":  "ctx.group_name",
+    "payer_name":         "ctx.payer_name",
+    "patient_name":       "ctx.member_name",
+    "patient_dob":        "ctx.member_dob",
+    "member_id":          "ctx.member_id",
+    "claim_id":           "ctx.claim_id",
+    "date_of_service":    "ctx.dos",
+    "billed_amount":      "ctx.amount",
+    "cpt_codes":          "ctx.cpt_codes",
+    "carc_codes":         "ctx.carc_codes",
+    "provider_npi":       "ctx.provider_npi",
+    "group_npi":          "ctx.group_npi",
+    "tax_id":             "ctx.group_tax_id",
+    "callback_number":    "settings.telnyx_from_number"
+  }
+}
