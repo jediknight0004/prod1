@@ -26,6 +26,7 @@ from .context import CallContext
 from .transport.telnyx_serializer import TelnyxFrameSerializer
 from .scripts.ar_followup import build_system_prompt, OPENING
 from .ivr import DTMFProcessor, IVRDetector, get_ivr_tree, IVR_SYSTEM_ADDENDUM
+from .fillers import FillerProcessor, KeyboardAudioInjector
 
 
 def _llm_client():
@@ -132,10 +133,16 @@ async def run_call_pipeline(websocket, stream_sid: str, ctx: CallContext,
     ivr_detector = IVRDetector(ivr_state)
     dtmf_proc = DTMFProcessor(call_control_id)
 
+    # Filler + keyboard audio — only active in human conversation phase
+    filler_proc = FillerProcessor(tts, delay_ms=380)
+    keyboard_inj = KeyboardAudioInjector(sample_rate=8000)
+
     pipeline = Pipeline([
         transport.input(),
         stt,
         ivr_detector,            # tags incoming speech as IVR or human
+        keyboard_inj,            # keyboard clicks while LLM processes
+        filler_proc,             # contextual TTS filler ("got it", "one moment"...)
         context_aggregator.user(),
         llm,
         dtmf_proc,               # intercepts [DTMF:X], fires Telnyx API, strips from TTS
